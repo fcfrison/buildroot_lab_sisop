@@ -2,71 +2,21 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
- 
+#include <unistd.h>
+#include <ctype.h>
+
 #define BUFLEN	1024	//Max length of buffer
 #define PORT	12345	//The port on which to listen for incoming data
 #define MAX_PATH 1024
+#define STR_BUFF 50000
 char* templateFormatter(char* content, char* template);
 char* generateHtml(char* fileName, char* titleName, char** keyWords, char nrKeywords);
-char* generateResponseSystemInfo();
+void generateResponseSystemInfo();
 char* generateHtmlCpuUsage(char* fileName, char* titleName, char** keyWords, char nrKeywords);
 char* generateHtmlListRunningProcesses();
-void die(char *s)
-{
-	perror(s);
-	exit(1);
-}
+int is_numeric(const char *str);
 
-char http_error[] = "HTTP/1.0 400 Bad Request\r\nContent-type: text/html\r\nServer: Test\r\n\r\n";
-char http_ok[] = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\nServer: Test\r\nConnection: close\r\n\r\n";
-int main(void){
-    struct sockaddr_in si_me, si_other;
-	int s, i, slen = sizeof(si_other) , recv_len, conn;
-	char buf[BUFLEN];
-	if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
-		die("socket");
-	memset((char *) &si_me, 0, sizeof(si_me));
-	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(PORT);
-	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-	if (bind(s, (struct sockaddr*)&si_me, sizeof(si_me)) == -1)
-		die("bind");
-	if (listen(s, 10) == -1)
-		die("listen");
-	while (1) {
-		memset(buf, 0, sizeof(buf));
-		printf("Waiting a connection...");
-		fflush(stdout);
-		conn = accept(s, (struct sockaddr *) &si_other, &slen);
-		if (conn < 0)
-			die("accept");
-		printf("Client connected: %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-		recv_len = read(conn, buf, BUFLEN);
-		if (recv_len < 0)
-			die("read");
-		printf("Data: %s\n" , buf);
-
-		if (strstr(buf, "GET")) {
-            char* response = generateResponseSystemInfo();
-            if (write(conn, http_ok, strlen(http_ok)) < 0)
-				die("write");
-			if (write(conn, response, strlen(response)) < 0){
-				die("write");
-            }
-            free(response);
-		} else {
-			if (write(conn, http_error, strlen(http_error)) < 0)
-				die("write");
-		}
-		close(conn);
-	}
-	close(s);
-    return 0;
-}
-char* generateResponseSystemInfo(){
+void generateResponseSystemInfo(){
     // Keywords
     char* cpuUsageKeyWords[] = {"cpu"};
     char* cpuInfoKewWords[] = {"processor","model name","cpu MHz"};
@@ -82,16 +32,16 @@ char* generateResponseSystemInfo(){
     char* netRoute = generateHtml("/proc/net/route","Net Route",NULL,0);
     char* memory = generateHtml("/proc/meminfo","Info - memoria",memorykeywords,2);
     char* diskUnits = generateHtml("/proc/partitions", "Lista de unidades de disco, com capacidade total de cada unidade",NULL,0);
-    char* finalTemplate = "<html>\n<head>\n<title>\nTest page\n</title>\n</head>\n\t<body>\n%s\n\t</body>\n</html>";
-    unsigned short cpuInfoSize = strlen(cpuInfo);
+    char* finalTemplate = "<html>\n<head>\n<title>\nTest page\n</title>\n<meta http-equiv=\"refresh\" content=\"1; http://127.0.0.1:12345/index.html\"></head>\n\t<body>\n%s\n\t</body>\n</html>";
+    int cpuInfoSize = strlen(cpuInfo);
     //unsigned short rtcTimeSize = strlen(time);
-    unsigned short uptimeSize = strlen(uptime);
-    unsigned short netRouteSize = strlen(netRoute);
-    unsigned short memorySize = strlen(memory);
-    unsigned short systemVersionSize = strlen(systemVersion);
-    unsigned short cpuUsageSize = strlen(cpuUsage);
-    unsigned short listRunningProcessesSize = strlen(runningProcesses);
-    unsigned short diskUnitsSize = strlen(diskUnits);
+    int uptimeSize = strlen(uptime);
+    int netRouteSize = strlen(netRoute);
+    int memorySize = strlen(memory);
+    int systemVersionSize = strlen(systemVersion);
+    int cpuUsageSize = strlen(cpuUsage);
+    int listRunningProcessesSize = strlen(runningProcesses);
+    int diskUnitsSize = strlen(diskUnits);
     unsigned int total = cpuInfoSize + uptimeSize + netRouteSize
                          + memorySize + systemVersionSize + cpuUsageSize
                          + listRunningProcessesSize + diskUnitsSize;//+rtcTimeSize
@@ -106,32 +56,30 @@ char* generateResponseSystemInfo(){
     strcat(body,runningProcesses);
     strcat(body,diskUnits);
     char* finalHtml = templateFormatter(body,finalTemplate);
+    FILE* filePointer = fopen("index.html","w");
     free(body);
+    fwrite(finalHtml, sizeof(char), strlen(finalHtml), filePointer);
     free(cpuInfo);
-    //free(time);
     free(uptime);
     free(netRoute);
     free(cpuUsage);
     free(runningProcesses);
-    return finalHtml;
+    free(finalHtml);
+    fclose(filePointer);
 }
 char* generateHtml(char* fileName, char* titleName, char** keyWords, char nrKeywords){
     FILE* fp = fopen(fileName,"r");
-    const int fixedArraySize = 12000;
-    int bufferSize = 500;
-    //setvbuf(fp,NULL,_IOFBF,BUFSIZ);
-    char* buffer = (char*) calloc(bufferSize,sizeof(char));
+    char* buffer = (char*) calloc(BUFLEN,sizeof(char));
     char* h3 = "\t<h3>%s</h3>\n";
     char* divOne = "\t<div>%s</div>\n";
     char* divTwo = "<div>\n%s</div>\n";
-    char* tempHtml = (char*) calloc(fixedArraySize,sizeof(char));
+    char* tempHtml = (char*) calloc(STR_BUFF,sizeof(char));
     char* title = templateFormatter(titleName,h3);
     strcat(tempHtml,title);
     if(keyWords){
-        while(fgets(buffer,bufferSize,fp)){
+        while(fgets(buffer,BUFLEN,fp)){
             for(char i=0;i<nrKeywords;i++){
                 if(strstr(buffer,keyWords[i])){
-                    //buffer[strlen(buffer)-1]='\0';
                     char* formattedString = templateFormatter(buffer,divOne);
                     strcat(tempHtml,formattedString);
                     free(formattedString);
@@ -139,7 +87,7 @@ char* generateHtml(char* fileName, char* titleName, char** keyWords, char nrKeyw
             }
         }
     }else{
-        while(fgets(buffer,bufferSize,fp)){
+        while(fgets(buffer,BUFLEN,fp)){
             buffer[strlen(buffer)-1]='\0';
             char* formattedString = templateFormatter(buffer,divOne);
             strcat(tempHtml,formattedString);
@@ -149,13 +97,13 @@ char* generateHtml(char* fileName, char* titleName, char** keyWords, char nrKeyw
     free(buffer);
     fclose(fp);
     char* finalHtml = templateFormatter(tempHtml,divTwo);
-    printf("%s",finalHtml);
+    //printf("%s",finalHtml);
     free(tempHtml);
     free(title);
     return finalHtml;
 }
 char* templateFormatter(char* content, char* template){
-    int bufSize = snprintf(NULL, 0, template, content);
+    unsigned int bufSize = (unsigned int)snprintf(NULL, 0, template, content);
     char* buffer = (char*)calloc(bufSize+1,sizeof(char));
     if (buffer == NULL) {
         return NULL;
@@ -164,10 +112,8 @@ char* templateFormatter(char* content, char* template){
     buffer[bufSize]='\0';
     return buffer;
 }
-
 char* generateHtmlCpuUsage(char* fileName, char* titleName, char** keyWords, char nrKeywords){
     FILE* fp = fopen(fileName,"r");
-    const int fixedArraySize = 12000;
     int bufferSize = 500;
     char cpu_string[6];
     int* numbers = (int*) calloc(7,sizeof(int));
@@ -175,7 +121,7 @@ char* generateHtmlCpuUsage(char* fileName, char* titleName, char** keyWords, cha
     char* h3 = "\t<h3>%s</h3>\n";
     char* divOne = "\t<div>%s</div>\n";
     char* divTwo = "<div>\n%s</div>\n";
-    char* tempHtml = (char*) calloc(fixedArraySize,sizeof(char));
+    char* tempHtml = (char*) calloc(STR_BUFF,sizeof(char));
     char* title = templateFormatter(titleName,h3);
     strcat(tempHtml,title);
     while(fgets(buffer,bufferSize,fp)){
@@ -213,12 +159,11 @@ char* generateHtmlCpuUsage(char* fileName, char* titleName, char** keyWords, cha
     free(buffer);
     fclose(fp);
     char* finalHtml = templateFormatter(tempHtml,divTwo);
-    printf("%s",finalHtml);
+    //printf("%s",finalHtml);
     free(tempHtml);
     free(title);
     return finalHtml;
 }
-
 int is_numeric(const char *str) {
     while (*str) {
         if (!isdigit(*str))
@@ -234,19 +179,18 @@ char* generateHtmlListRunningProcesses() {
     char path[MAX_PATH];
     char line[MAX_PATH];
     char name[MAX_PATH];
-    const int fixedArraySize = 12000;
     int bufferSize = 500;
     char* buffer = (char*) calloc(bufferSize,sizeof(char));
     char* h3 = "\t<h3>%s</h3>\n";
     char* divOne = "\t<div>%s</div>\n";
     char* divTwo = "<div>\n%s</div>\n";
-    char* tempHtml = (char*) calloc(fixedArraySize,sizeof(char));
+    char* tempHtml = (char*) calloc(STR_BUFF,sizeof(char));
     char* title = templateFormatter("Running processes",h3);
     strcat(tempHtml,title);
     proc_dir = opendir("/proc");
     if (proc_dir == NULL) {
         perror("Unable to open /proc");
-        return 1;
+        return NULL;
     }
     while ((entry = readdir(proc_dir)) != NULL) {
         if (is_numeric(entry->d_name)) {
@@ -255,7 +199,7 @@ char* generateHtmlListRunningProcesses() {
             if (fp != NULL) {
                 if (fgets(line, sizeof(line), fp) != NULL) {
                     sscanf(line, "Name:\t%s", name);
-                    printf("%s\t%s\n", entry->d_name, name);
+                    //printf("%s\t%s\n", entry->d_name, name);
                     int tempBufferSize = strlen(entry->d_name) + strlen(name) + 2;
                     char* tempBuffer = calloc(tempBufferSize,sizeof(char));
                     strcat(tempBuffer,entry->d_name);
@@ -275,4 +219,13 @@ char* generateHtmlListRunningProcesses() {
     free(tempHtml);
     free(title);
     return finalHtml;
+}
+int main(){
+    while(1){
+        printf("Gera novo index.html\n");
+        generateResponseSystemInfo();
+        sleep(1);
+    }
+
+    return 0;
 }

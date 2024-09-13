@@ -1,7 +1,8 @@
 #!/bin/bash
 cd ./custom-scripts/webserver/
-../../output/host/bin/i686-buildroot-linux-gnu-cc main.c -O2 -o main
-cp main ../../output/target/usr/bin/
+../../output/host/bin/i686-buildroot-linux-gnu-cc server.c -O2 -o server
+../../output/host/bin/i686-buildroot-linux-gnu-cc app.c -O2 -o app
+cp server app ../../output/target/usr/bin/
 cd ../../
 make
 sudo qemu-system-i386 \
