@@ -22,7 +22,7 @@ void generateResponseSystemInfo(){
     char* cpuInfoKewWords[] = {"processor","model name","cpu MHz"};
     char* rtcTime[] = {"rtc_time", "rtc_date"};
     char* memorykeywords[] = {"MemTotal","MemFree"};
-
+    char* devicesKeyWords[] = {"I: ", "N: "};
     char* runningProcesses = generateHtmlListRunningProcesses();
     char* cpuUsage = generateHtmlCpuUsage("/proc/stat","Capacidade ocupada do processador em %",cpuUsageKeyWords, 1);
     char* systemVersion = generateHtml("/proc/version","Info - Sistema",NULL,0);
@@ -32,7 +32,8 @@ void generateResponseSystemInfo(){
     char* netRoute = generateHtml("/proc/net/route","Net Route",NULL,0);
     char* memory = generateHtml("/proc/meminfo","Info - memoria",memorykeywords,2);
     char* diskUnits = generateHtml("/proc/partitions", "Lista de unidades de disco, com capacidade total de cada unidade",NULL,0);
-    char* finalTemplate = "<html>\n<head>\n<title>\nTest page\n</title>\n<meta http-equiv=\"refresh\" content=\"1; http://127.0.0.1:12345/index.html\"></head>\n\t<body>\n%s\n\t</body>\n</html>";
+    char* devices = generateHtml("/proc/bus/input/devices","Lista de devices conectados",devicesKeyWords,2);
+    char* finalTemplate = "<html>\n<head>\n<title>\nTest page\n</title>\n<meta http-equiv=\"refresh\" content=\"1; http://192.168.1.10:12345/index.html\"></head>\n\t<body>\n%s\n\t</body>\n</html>";
     int cpuInfoSize = strlen(cpuInfo);
     //unsigned short rtcTimeSize = strlen(time);
     int uptimeSize = strlen(uptime);
@@ -42,9 +43,11 @@ void generateResponseSystemInfo(){
     int cpuUsageSize = strlen(cpuUsage);
     int listRunningProcessesSize = strlen(runningProcesses);
     int diskUnitsSize = strlen(diskUnits);
+    int devicesSize = strlen(devices);
     unsigned int total = cpuInfoSize + uptimeSize + netRouteSize
                          + memorySize + systemVersionSize + cpuUsageSize
-                         + listRunningProcessesSize + diskUnitsSize;//+rtcTimeSize
+                         + listRunningProcessesSize + diskUnitsSize
+                         + devicesSize;//+rtcTimeSize
     char* body = calloc(total+1,sizeof(char));
     strcat(body,cpuInfo);
     //strcat(body,time);
@@ -55,6 +58,7 @@ void generateResponseSystemInfo(){
     strcat(body,cpuUsage);
     strcat(body,runningProcesses);
     strcat(body,diskUnits);
+    strcat(body,devices);
     char* finalHtml = templateFormatter(body,finalTemplate);
     FILE* filePointer = fopen("index.html","w");
     free(body);
@@ -226,6 +230,5 @@ int main(){
         generateResponseSystemInfo();
         sleep(1);
     }
-
     return 0;
 }
