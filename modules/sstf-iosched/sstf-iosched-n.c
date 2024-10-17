@@ -10,10 +10,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-sector_t current = (sector_t) 0;
+
 /* SSTF data structure. */
-//https://stackoverflow.com/questions/16230524/explain-list-for-each-entry-and-list-for-each-entry-safe
-//https://kernelnewbies.org/FAQ/LinkedLists
 struct sstf_data {
 	struct list_head queue;
 };
@@ -24,47 +22,39 @@ static void sstf_merged_requests(struct request_queue *q, struct request *rq,
 	list_del_init(&next->queuelist);
 }
 
-bool is_better_request(struct request *rq, struct request *current_best ){
-	// Escrever a lógica para verificar se a requisição corrente é melhor do que a 
-	// melhor corrente
-	return true;
-}
-
 /* Esta função despacha o próximo bloco a ser lido. */
 static int sstf_dispatch(struct request_queue *q, int force){
-	struct sstf_data* nd = q->elevator->elevator_data;
+	struct sstf_data *nd = q->elevator->elevator_data;
 	char direction = 'R';
-	struct request* rq, *next;
-	struct request* best_request = NULL;
+	struct request *rq;
+
 	/* Aqui deve-se retirar uma requisição da fila e enviá-la para processamento.
 	 * Use como exemplo o driver noop-iosched.c. Veja como a requisição é tratada.
 	 *
 	 * Antes de retornar da função, imprima o sector que foi atendido.
 	 */
-	list_for_each_entry_safe(rq, next, &nd->queue, queuelist) {
-        if (is_better_request(rq, best_request)) {
-            best_request = rq;
-        }
-    }
-	if (best_request) {
-        list_del_init(&best_request->queuelist);
-        elv_dispatch_sort(q, best_request);
-        return 1;
-    }
-	/*rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
+
+	rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
 	if (rq) {
 		list_del_init(&rq->queuelist);
 		elv_dispatch_sort(q, rq);
 		printk(KERN_EMERG "[SSTF] dsp %c %llu\n", direction, blk_rq_pos(rq));
 
 		return 1;
-	}*/
+	}
 	return 0;
 }
 
 static void sstf_add_request(struct request_queue *q, struct request *rq){
 	struct sstf_data *nd = q->elevator->elevator_data;
 	char direction = 'R';
+
+	/* Aqui deve-se adicionar uma requisição na fila do driver.
+	 * Use como exemplo o driver noop-iosched.c
+	 *
+	 * Antes de retornar da função, imprima o sector que foi adicionado na lista.
+	 */
+
 	list_add_tail(&rq->queuelist, &nd->queue);
 	printk(KERN_EMERG "[SSTF] add %c %llu\n", direction, blk_rq_pos(rq));
 }

@@ -1,6 +1,7 @@
 rm output/build/linux-custom/.stamp_*
 export LINUX_OVERRIDE_SRCDIR=/workspaces/linux-4.13.9/
 cd modules/sstf-iosched
+cp t2.sh ../../output/target/
 make
 cd ../../
 make
