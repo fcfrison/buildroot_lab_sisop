@@ -41,7 +41,7 @@ int main()
 		return errno;
 	}
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 25; i++) {
 		pos = (rand() % (DISK_SZ >> 9));
 		printf("Pos:%d",pos);
 		/* Set position */

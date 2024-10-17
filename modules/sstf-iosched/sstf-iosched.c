@@ -28,11 +28,17 @@ int is_better_request(struct request* rq, struct request* current_best ){
 	if(!current_best){
 		return 1;
 	}
-	sector_t s1, s2, delta1, delta2;
+	//sector_t s1, s2, delta1, delta2;
+	sector_t s1, s2;
+	long int delta1, delta2;
 	s1 = blk_rq_pos(rq);
 	s2 = blk_rq_pos(current_best);
-	delta1 = s1 - cur_sect<0 ? (-1)*(s1 - cur_sect):(s1 - cur_sect);
-	delta2 = s2 - cur_sect<0 ? (-1)*(s2 - cur_sect):(s2 - cur_sect);
+	delta1 = (long int)s1 - (long int)cur_sect;
+	delta2 = (long int)s2 - (long int)cur_sect;
+	delta1 = delta1<0?(-1)*delta1:delta1;
+	delta2 = delta2<0?(-1)*delta2:delta2;
+	//delta1 = (s1 - cur_sect<0) ? (cur_sect-s1):(s1 - cur_sect);
+	//delta2 = (s2 - cur_sect<0) ? (cur_sect-s2):(s2 - cur_sect);
 	return delta1<delta2?1:0;
 }
 
@@ -59,7 +65,7 @@ static void sstf_add_request(struct request_queue *q, struct request *rq){
 	struct sstf_data *nd = q->elevator->elevator_data;
 	char direction = 'R';
 	list_add_tail(&rq->queuelist, &nd->queue);
-	printk(KERN_EMERG "[SSTF] add %c %llu\n", direction, blk_rq_pos(rq));
+	//printk(KERN_EMERG "[SSTF] add %c %llu\n", direction, blk_rq_pos(rq));
 }
 
 static int sstf_init_queue(struct request_queue *q, struct elevator_type *e){
