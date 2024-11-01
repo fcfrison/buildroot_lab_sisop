@@ -11,9 +11,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 sector_t cur_sect = (sector_t) 0;
-/* SSTF data structure. */
-//https://stackoverflow.com/questions/16230524/explain-list-for-each-entry-and-list-for-each-entry-safe
-//https://kernelnewbies.org/FAQ/LinkedLists
 struct sstf_data {
 	struct list_head queue;
 };
@@ -63,9 +60,8 @@ static int sstf_dispatch(struct request_queue *q, int force){
 }
 static void sstf_add_request(struct request_queue *q, struct request *rq){
 	struct sstf_data *nd = q->elevator->elevator_data;
-	char direction = 'R';
 	list_add_tail(&rq->queuelist, &nd->queue);
-	//printk(KERN_EMERG "[SSTF] add %c %llu\n", direction, blk_rq_pos(rq));
+	printk(KERN_EMERG "[SSTF] add: %llu\n", blk_rq_pos(rq));
 }
 
 static int sstf_init_queue(struct request_queue *q, struct elevator_type *e){
